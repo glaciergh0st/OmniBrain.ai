@@ -1,0 +1,94 @@
+const test = require("node:test");
+const assert = require("node:assert/strict");
+const { app } = require("../src/server");
+
+let server;
+let baseUrl;
+
+test.before(async () => {
+  await new Promise((resolve) => {
+    server = app.listen(0, "127.0.0.1", () => {
+      const address = server.address();
+      baseUrl = `http://127.0.0.1:${address.port}`;
+      resolve();
+    });
+  });
+});
+
+test.after(async () => {
+  if (!server) {
+    return;
+  }
+  await new Promise((resolve, reject) => {
+    server.close((error) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+      resolve();
+    });
+  });
+});
+
+test("GET /api/health returns service health", async () => {
+  const response = await fetch(`${baseUrl}/api/health`);
+  assert.equal(response.status, 200);
+  const payload = await response.json();
+  assert.equal(payload.status, "ok");
+  assert.equal(payload.service, "sec-sme-webapp");
+});
+
+test("GET /api/config returns persona/mode/domain lists", async () => {
+  const response = await fetch(`${baseUrl}/api/config`);
+  assert.equal(response.status, 200);
+  const payload = await response.json();
+
+  assert.ok(Array.isArray(payload.personas));
+  assert.ok(payload.personas.some((persona) => persona.id === "ARCHITECT"));
+  assert.deepEqual(payload.modes, ["TEACH", "HUNT", "WORK"]);
+  assert.ok(payload.domains.includes("Endpoint"));
+});
+
+test("POST /api/respond returns formatted SEC SME response", async () => {
+  const response = await fetch(`${baseUrl}/api/respond`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      persona: "ARCHITECT",
+      mode: "HUNT",
+      domain: "Endpoint",
+      userQuery:
+        "Hunt for suspicious PowerShell encoded commands and map to ATT&CK.",
+    }),
+  });
+
+  assert.equal(response.status, 200);
+  const payload = await response.json();
+  assert.equal(payload.ok, true);
+  assert.match(payload.responseText, /\[PERSONA\]: ARCHITECT/);
+  assert.match(payload.responseText, /Adversary Mapping/);
+  assert.equal(payload.technique.id, "T1059.001");
+});
+
+test("POST /api/respond validates required fields", async () => {
+  const response = await fetch(`${baseUrl}/api/respond`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      persona: "ARCHITECT",
+      mode: "HUNT",
+      domain: "Endpoint",
+      userQuery: "",
+    }),
+  });
+
+  assert.equal(response.status, 400);
+  const payload = await response.json();
+  assert.equal(payload.ok, false);
+  assert.ok(Array.isArray(payload.errors));
+  assert.ok(payload.errors.some((error) => error.includes("userQuery")));
+});
