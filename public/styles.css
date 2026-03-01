@@ -53,6 +53,26 @@ body {
   gap: 0.5rem;
 }
 
+.link-button {
+  border: 1px solid var(--border);
+  background-color: #1a2740;
+  color: var(--text);
+  padding: 0.55rem 0.9rem;
+  border-radius: 0.5rem;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  transition:
+    border-color 0.2s ease,
+    transform 0.12s ease,
+    background-color 0.2s ease;
+}
+
+.link-button:hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
 button {
   border: 1px solid var(--border);
   background-color: #1a2740;
@@ -151,6 +171,57 @@ select:focus {
   flex-wrap: wrap;
 }
 
+.preview-layout {
+  grid-template-columns: minmax(340px, 480px) minmax(460px, 1fr);
+}
+
+.preview-subtitle {
+  margin-top: -0.2rem;
+}
+
+.preview-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.55rem;
+  margin-bottom: 0.95rem;
+}
+
+.preview-card {
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  background-color: #16253f;
+  color: var(--text);
+  text-align: left;
+  padding: 0.75rem;
+  width: 100%;
+}
+
+.preview-card:hover {
+  border-color: var(--accent);
+}
+
+.preview-card strong {
+  display: block;
+  margin-bottom: 0.2rem;
+}
+
+.preview-card .meta {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  margin-bottom: 0.35rem;
+  display: block;
+}
+
+#runQuickButton {
+  background-color: #154583;
+  border-color: #1f5da9;
+}
+
+#clearQuickButton {
+  background-color: #3b2a2a;
+  border-color: #734040;
+}
+
 .status {
   min-height: 1.2rem;
   margin: 0.8rem 0 0;
@@ -230,6 +301,10 @@ summary {
 
 @media (max-width: 980px) {
   .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .preview-layout {
     grid-template-columns: 1fr;
   }
 

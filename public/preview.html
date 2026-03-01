@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SEC SME Preview</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <h1>SEC SME Preview Website</h1>
+      <p class="subtitle">
+        One-click demo scenarios for immediate output preview
+      </p>
+      <div class="header-actions">
+        <a class="link-button" href="/">Open Full App</a>
+        <button id="copyPreviewButton" type="button" disabled>Copy Output</button>
+        <button id="downloadPreviewButton" type="button" disabled>
+          Download Output
+        </button>
+      </div>
+    </header>
+
+    <main class="layout preview-layout">
+      <section class="panel">
+        <h2>Quick Demo Scenarios</h2>
+        <p class="subtitle preview-subtitle">
+          Select a card to run a live request against <code>/api/respond</code>.
+        </p>
+
+        <div class="preview-grid" id="previewGrid"></div>
+
+        <h3>Custom Quick Test</h3>
+        <form id="quickForm">
+          <div class="field-row">
+            <label for="quickPersona">Persona</label>
+            <select id="quickPersona" name="persona">
+              <option value="ARCHITECT">ARCHITECT</option>
+              <option value="OFFENSIVE">OFFENSIVE</option>
+              <option value="FORENSICS">FORENSICS</option>
+              <option value="STRATEGIST">STRATEGIST</option>
+            </select>
+          </div>
+
+          <div class="field-row">
+            <label for="quickMode">Mode</label>
+            <select id="quickMode" name="mode">
+              <option value="TEACH">TEACH</option>
+              <option value="HUNT">HUNT</option>
+              <option value="WORK">WORK</option>
+            </select>
+          </div>
+
+          <div class="field-row">
+            <label for="quickDomain">Domain (optional)</label>
+            <select id="quickDomain" name="domain">
+              <option value="">Auto infer</option>
+              <option value="Endpoint">Endpoint</option>
+              <option value="Cloud">Cloud</option>
+              <option value="Network">Network</option>
+              <option value="Identity">Identity</option>
+              <option value="Supply Chain">Supply Chain</option>
+            </select>
+          </div>
+
+          <div class="field-row">
+            <label for="quickQuery">Scenario</label>
+            <textarea
+              id="quickQuery"
+              name="userQuery"
+              rows="6"
+              maxlength="5000"
+              placeholder="Example: Hunt for suspicious AssumeRole spikes from unusual geolocations in AWS."
+              required
+            ></textarea>
+          </div>
+
+          <div class="form-actions">
+            <button id="runQuickButton" type="submit">Run Quick Test</button>
+            <button id="clearQuickButton" type="button">Clear</button>
+          </div>
+        </form>
+
+        <p id="previewStatus" class="status"></p>
+      </section>
+
+      <section class="panel">
+        <h2>Live Output Preview</h2>
+        <pre id="previewOutput" class="output"></pre>
+
+        <details>
+          <summary>Raw JSON Response</summary>
+          <pre id="previewJson" class="output output-json"></pre>
+        </details>
+      </section>
+    </main>
+
+    <script src="/preview.js" defer></script>
+  </body>
+</html>

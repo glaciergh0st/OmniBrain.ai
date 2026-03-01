@@ -32,6 +32,8 @@ The app supports persona-adaptive output, ATT&CK mapping, telemetry requirements
 ├── public/
 │   ├── app.js
 │   ├── index.html
+│   ├── preview.html
+│   ├── preview.js
 │   └── styles.css
 ├── src/
 │   ├── secSmeEngine.js
@@ -75,6 +77,12 @@ Default URL:
 
 ```text
 http://localhost:3000
+```
+
+Instant preview website:
+
+```text
+http://localhost:3000/preview.html
 ```
 
 ---

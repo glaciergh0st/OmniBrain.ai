@@ -92,3 +92,11 @@ test("POST /api/respond validates required fields", async () => {
   assert.ok(Array.isArray(payload.errors));
   assert.ok(payload.errors.some((error) => error.includes("userQuery")));
 });
+
+test("GET /preview.html serves instant preview website", async () => {
+  const response = await fetch(`${baseUrl}/preview.html`);
+  assert.equal(response.status, 200);
+  const body = await response.text();
+  assert.match(body, /SEC SME Preview Website/);
+  assert.match(body, /Quick Demo Scenarios/);
+});
