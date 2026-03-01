@@ -87,7 +87,7 @@ const DOMAIN_TELEMETRY = {
     "Sysmon (Event IDs 1, 3, 7, 8, 10, 11, 13)",
     "Windows Security logs (4624, 4688, 4698, 4720, 4732)",
     "EDR process lineage and script telemetry",
-    "PowerShell ScriptBlock logs (4104)",
+    "PowerShell ScriptBlock logs (Event ID 4104)",
   ],
   Cloud: [
     "AWS CloudTrail management + data events",
@@ -507,7 +507,7 @@ function inferMode(userMode, userQuery) {
   if (/(hunt|hunt for|triage|detect in logs|search logs)/i.test(query)) {
     return "HUNT";
   }
-  if (/(scenario|exercise|hands-on|lab|work mode|solve)/i.test(query)) {
+  if (/(scenario|exercise|hands-on|\blabs?\b|work mode|\bsolve\b)/i.test(query)) {
     return "WORK";
   }
   return DEFAULT_MODE;
