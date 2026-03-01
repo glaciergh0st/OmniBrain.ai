@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SEC SME Agent SaaS</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <h1>SEC SME Agent SaaS</h1>
+      <p class="subtitle">
+        Persona-adaptive cybersecurity architecture and execution assistant
+      </p>
+      <div class="header-actions">
+        <button id="loadPromptButton" type="button">Load System Prompt</button>
+        <button id="copyResponseButton" type="button" disabled>Copy Response</button>
+        <button id="downloadResponseButton" type="button" disabled>
+          Download .md
+        </button>
+      </div>
+    </header>
+
+    <main class="layout">
+      <section class="panel">
+        <h2>Request Builder</h2>
+        <form id="requestForm">
+          <div class="field-row">
+            <label for="personaSelect">Persona</label>
+            <select id="personaSelect" name="persona" required>
+              <option value="ARCHITECT">ARCHITECT</option>
+              <option value="OFFENSIVE">OFFENSIVE</option>
+              <option value="FORENSICS">FORENSICS</option>
+              <option value="STRATEGIST">STRATEGIST</option>
+            </select>
+          </div>
+
+          <div class="field-row">
+            <label for="modeSelect">Mode</label>
+            <select id="modeSelect" name="mode">
+              <option value="">Auto (infer from intent)</option>
+              <option value="TEACH">TEACH</option>
+              <option value="HUNT">HUNT</option>
+              <option value="WORK">WORK</option>
+            </select>
+          </div>
+
+          <div class="field-row">
+            <label for="domainSelect">Domain</label>
+            <select id="domainSelect" name="domain">
+              <option value="">Auto (infer from query)</option>
+            </select>
+          </div>
+
+          <div class="field-row">
+            <label for="objectiveInput">Strategic Objective (optional)</label>
+            <input
+              id="objectiveInput"
+              name="strategicObjective"
+              type="text"
+              maxlength="150"
+              placeholder="e.g., Egress filtering, Least privilege"
+            />
+          </div>
+
+          <div class="field-row">
+            <label for="queryInput">Scenario / Request</label>
+            <textarea
+              id="queryInput"
+              name="userQuery"
+              rows="8"
+              maxlength="5000"
+              required
+              placeholder="Describe the threat scenario, environment, and what you need."
+            ></textarea>
+          </div>
+
+          <div class="form-actions">
+            <button id="submitButton" type="submit">Generate Response</button>
+            <button id="sampleButton" type="button">Load Sample</button>
+            <button id="resetButton" type="button">Reset</button>
+          </div>
+        </form>
+        <p id="statusMessage" class="status"></p>
+
+        <section class="history">
+          <h3>Recent Scenarios</h3>
+          <ul id="historyList"></ul>
+        </section>
+      </section>
+
+      <section class="panel">
+        <h2>Generated Response</h2>
+        <pre id="responseOutput" class="output"></pre>
+
+        <details>
+          <summary>Structured JSON</summary>
+          <pre id="jsonOutput" class="output output-json"></pre>
+        </details>
+
+        <details id="promptDetails">
+          <summary>Current System Prompt</summary>
+          <pre id="promptOutput" class="output output-prompt"></pre>
+        </details>
+      </section>
+    </main>
+
+    <script src="/app.js" defer></script>
+  </body>
+</html>

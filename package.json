@@ -1,0 +1,34 @@
+{
+  "name": "sec-sme-webapp",
+  "version": "1.0.0",
+  "description": "SEC SME SaaS web application",
+  "main": "src/server.js",
+  "scripts": {
+    "dev": "nodemon src/server.js",
+    "start": "node src/server.js",
+    "test": "node --test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/glaciergh0st/OmniBrain.ai.git"
+  },
+  "keywords": [
+    "security",
+    "mitre",
+    "siem",
+    "dfir",
+    "saas"
+  ],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/glaciergh0st/OmniBrain.ai/issues"
+  },
+  "homepage": "https://github.com/glaciergh0st/OmniBrain.ai#readme",
+  "dependencies": {
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}
