@@ -1,27 +1,46 @@
-# SEC SME Web App
+# SEC SME Copilot (Production-Ready Web App)
 
-A fully functional web application for generating structured cybersecurity guidance using the **SEC SME Framework**.
+SEC SME Copilot is a full-stack cybersecurity assistant that applies the **SEC SME Framework** with persona-aware responses and a strict strategy-first structure.
 
-The app supports persona-adaptive output, ATT&CK mapping, telemetry requirements, command/query generation, D3FEND-aligned prevention, and validation steps.
+It supports:
+
+- real AI generation via an OpenAI-compatible provider (for broad, arbitrary user input),
+- deterministic fallback mode when no model key is configured,
+- clean chat UI,
+- production hardening (security headers, rate limiting, runtime health/config visibility).
 
 ---
 
-## Features
+## Core Features
 
-- Web UI with:
-  - Persona selection: `ARCHITECT`, `OFFENSIVE`, `FORENSICS`, `STRATEGIST`
-  - Interaction mode: `TEACH`, `HUNT`, `WORK`, or auto-infer
-  - Domain selection: `Endpoint`, `Cloud`, `Network`, `Identity`, `Supply Chain`, or auto-infer
-  - Optional strategic objective override
-  - Recent scenario history (local storage)
-  - Copy and download generated responses
-  - In-app system prompt viewer
-- API with:
-  - Health endpoint
-  - Config endpoint (personas/modes/domains)
-  - System prompt retrieval endpoint
-  - Response generation endpoint with input validation
-- Automated tests for core API behavior.
+### 1) Production Chat Experience
+
+- Clean chat-first UI at `/`
+- Persona: `ARCHITECT`, `OFFENSIVE`, `FORENSICS`, `STRATEGIST`
+- Mode: `TEACH`, `HUNT`, `WORK`, or auto
+- Domain: `Endpoint`, `Cloud`, `Network`, `Identity`, `Supply Chain`, or auto
+- Optional strategic objective override
+- Context toggle (include/exclude conversation history)
+- Copy/download latest assistant response
+- Local chat persistence for session continuity
+
+### 2) AI + Fallback Execution
+
+- `POST /api/chat` uses live LLM when configured
+- If LLM is unavailable and not required, app auto-falls back to deterministic SEC SME engine
+- Output always follows schema-oriented SEC SME structure with:
+  - ATT&CK mapping
+  - telemetry requirements
+  - command/query blocks
+  - prevention hierarchy
+  - validation criteria
+
+### 3) Production API Hardening
+
+- Security headers (CSP, frame deny, referrer policy, etc.)
+- Rate limiting for `/api/*`
+- Centralized runtime config endpoint
+- Input validation for chat and response APIs
 
 ---
 
@@ -34,9 +53,14 @@ The app supports persona-adaptive output, ATT&CK mapping, telemetry requirements
 │   ├── index.html
 │   ├── preview.html
 │   ├── preview.js
+│   ├── safari-preview.html
 │   └── styles.css
 ├── src/
+│   ├── chatService.js
+│   ├── config.js
+│   ├── llmClient.js
 │   ├── secSmeEngine.js
+│   ├── security.js
 │   └── server.js
 ├── test/
 │   └── server.test.js
@@ -53,7 +77,36 @@ The app supports persona-adaptive output, ATT&CK mapping, telemetry requirements
 
 ---
 
-## Run Locally
+## Environment Variables
+
+Create a `.env` file (or set environment variables in your platform):
+
+```env
+# App
+PORT=3000
+NODE_ENV=production
+TRUST_PROXY=true
+
+# LLM (OpenAI-compatible)
+OPENAI_API_KEY=your_key_here
+LLM_PROVIDER=openai-compatible
+LLM_BASE_URL=https://api.openai.com/v1
+LLM_MODEL=gpt-4.1-mini
+LLM_TIMEOUT_MS=45000
+LLM_TEMPERATURE=0.25
+LLM_MAX_OUTPUT_TOKENS=1800
+
+# API safeguards
+RATE_LIMIT_WINDOW_MS=60000
+RATE_LIMIT_MAX_REQUESTS=120
+
+# Optional: if true, fail requests when LLM not configured
+REQUIRE_LLM=false
+```
+
+---
+
+## Run
 
 Install dependencies:
 
@@ -61,39 +114,23 @@ Install dependencies:
 npm install
 ```
 
-Start in development mode:
+Development:
 
 ```bash
 npm run dev
 ```
 
-Start in production mode:
+Production:
 
 ```bash
 npm start
 ```
 
-Default URL:
+URLs:
 
-```text
-http://localhost:3000
-```
-
-Instant preview website:
-
-```text
-http://localhost:3000/preview.html
-```
-
----
-
-## Test
-
-Run automated tests:
-
-```bash
-npm test
-```
+- Main app: `http://localhost:3000/`
+- Quick demo page: `http://localhost:3000/preview.html`
+- Static Safari preview: `http://localhost:3000/safari-preview.html`
 
 ---
 
@@ -101,19 +138,27 @@ npm test
 
 ### `GET /api/health`
 
-Returns service status and uptime.
+Service health + uptime + model configuration status.
+
+### `GET /api/runtime`
+
+Runtime config summary (sanitized):
+
+- environment
+- llm provider/model/configured status
+- rate limit settings
 
 ### `GET /api/config`
 
-Returns supported personas, modes, and domain options.
+Returns supported personas, modes, and domains.
 
 ### `GET /api/system-prompt`
 
-Returns the current SEC SME system prompt text.
+Returns `SEC_SME_SYSTEM_PROMPT.md` content.
 
-### `POST /api/respond`
+### `POST /api/chat` (Primary)
 
-Generates schema-compliant SEC SME output.
+Generates production SEC SME response for arbitrary input.
 
 Example request:
 
@@ -121,25 +166,41 @@ Example request:
 {
   "persona": "ARCHITECT",
   "mode": "HUNT",
-  "domain": "Endpoint",
-  "strategicObjective": "Script execution governance",
-  "userQuery": "Hunt for suspicious PowerShell encoded commands and map to ATT&CK."
+  "domain": "Identity",
+  "strategicObjective": "Session/token abuse prevention",
+  "message": "Investigate suspicious OAuth refresh token abuse in Entra ID and provide KQL detection and validation.",
+  "history": [
+    { "role": "user", "content": "We saw abnormal auth spikes." },
+    { "role": "assistant", "content": "Can you confirm provider and logs?" }
+  ]
 }
 ```
 
-Example response fields:
+### `POST /api/respond` (Compatibility Endpoint)
 
-- `responseText` (formatted response for direct copy/paste)
-- `technique` (MITRE ATT&CK ID + name + context)
-- `telemetry`
-- `command`, `query`, `queryLanguage`
-- `architecturalFix`, `d3fendMapping`
-- `validation` block
+Deterministic SEC SME generation endpoint kept for compatibility and fallback testing.
 
 ---
 
-## Notes
+## Tests
 
-- If `mode` or `domain` are omitted, the app infers them from user intent and keywords.
-- The learning rule is automatically applied for teaching-oriented requests.
-- This app provides deterministic response generation and does not require external model keys.
+Run:
+
+```bash
+npm test
+```
+
+Coverage includes:
+
+- health/config/runtime endpoints
+- production chat endpoint validation + response behavior
+- compatibility response endpoint
+- static page serving checks
+
+---
+
+## Deployment Notes
+
+- Set `OPENAI_API_KEY` (or `LLM_API_KEY`) for live AI mode.
+- For reverse proxies/load balancers, keep `TRUST_PROXY=true`.
+- For strict production behavior, set `REQUIRE_LLM=true` so `/api/chat` fails closed when provider is unavailable.

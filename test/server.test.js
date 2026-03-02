@@ -49,6 +49,56 @@ test("GET /api/config returns persona/mode/domain lists", async () => {
   assert.ok(payload.domains.includes("Endpoint"));
 });
 
+test("GET /api/runtime returns runtime configuration status", async () => {
+  const response = await fetch(`${baseUrl}/api/runtime`);
+  assert.equal(response.status, 200);
+  const payload = await response.json();
+  assert.equal(payload.service, "sec-sme-webapp");
+  assert.equal(typeof payload.llm.configured, "boolean");
+  assert.equal(typeof payload.rateLimit.maxRequests, "number");
+});
+
+test("POST /api/chat handles arbitrary user input", async () => {
+  const response = await fetch(`${baseUrl}/api/chat`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      persona: "ARCHITECT",
+      mode: "HUNT",
+      message:
+        "Create a hunt plan for suspicious OAuth token abuse and include ATT&CK, telemetry, command, query, and validation proof.",
+    }),
+  });
+
+  assert.equal(response.status, 200);
+  const payload = await response.json();
+  assert.equal(payload.ok, true);
+  assert.match(payload.responseText, /\[PERSONA\]:/);
+  assert.ok(["llm", "fallback-engine"].includes(payload.provider));
+  assert.equal(typeof payload.fallbackUsed, "boolean");
+});
+
+test("POST /api/chat validates required message", async () => {
+  const response = await fetch(`${baseUrl}/api/chat`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      persona: "ARCHITECT",
+      mode: "HUNT",
+      message: "",
+    }),
+  });
+
+  assert.equal(response.status, 400);
+  const payload = await response.json();
+  assert.equal(payload.ok, false);
+  assert.ok(payload.errors.some((error) => error.includes("message")));
+});
+
 test("POST /api/respond returns formatted SEC SME response", async () => {
   const response = await fetch(`${baseUrl}/api/respond`, {
     method: "POST",
@@ -99,4 +149,12 @@ test("GET /preview.html serves instant preview website", async () => {
   const body = await response.text();
   assert.match(body, /SEC SME Preview Website/);
   assert.match(body, /Quick Demo Scenarios/);
+});
+
+test("GET / serves clean production UI", async () => {
+  const response = await fetch(`${baseUrl}/`);
+  assert.equal(response.status, 200);
+  const body = await response.text();
+  assert.match(body, /SEC SME Copilot/);
+  assert.match(body, /Production-ready AI security architecture assistant/);
 });

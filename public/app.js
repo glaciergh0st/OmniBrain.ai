@@ -1,37 +1,47 @@
-const requestForm = document.getElementById("requestForm");
+const settingsForm = document.getElementById("settingsForm");
 const personaSelect = document.getElementById("personaSelect");
 const modeSelect = document.getElementById("modeSelect");
 const domainSelect = document.getElementById("domainSelect");
 const objectiveInput = document.getElementById("objectiveInput");
-const queryInput = document.getElementById("queryInput");
-const submitButton = document.getElementById("submitButton");
-const sampleButton = document.getElementById("sampleButton");
-const resetButton = document.getElementById("resetButton");
+const contextToggle = document.getElementById("contextToggle");
+const chatForm = document.getElementById("chatForm");
+const messageInput = document.getElementById("messageInput");
+const sendButton = document.getElementById("sendButton");
+const newChatButton = document.getElementById("newChatButton");
+const copyLastButton = document.getElementById("copyLastButton");
+const downloadLastButton = document.getElementById("downloadLastButton");
 const loadPromptButton = document.getElementById("loadPromptButton");
-const copyResponseButton = document.getElementById("copyResponseButton");
-const downloadResponseButton = document.getElementById("downloadResponseButton");
 const statusMessage = document.getElementById("statusMessage");
-const responseOutput = document.getElementById("responseOutput");
+const providerInfo = document.getElementById("providerInfo");
+const runtimeBadge = document.getElementById("runtimeBadge");
+const chatThread = document.getElementById("chatThread");
 const jsonOutput = document.getElementById("jsonOutput");
 const promptOutput = document.getElementById("promptOutput");
 const promptDetails = document.getElementById("promptDetails");
-const historyList = document.getElementById("historyList");
 
-const HISTORY_KEY = "sec-sme-recent-scenarios";
-const MAX_HISTORY = 8;
+const SETTINGS_KEY = "sec-sme-chat-settings-v2";
+const CHAT_KEY = "sec-sme-chat-history-v2";
+const MAX_SAVED_MESSAGES = 30;
+const MAX_CONTEXT_MESSAGES = 12;
 
-let latestResponseText = "";
-let historyItems = [];
-
-const sampleScenario =
-  "Need a [MODE:HUNT] plan for suspicious PowerShell activity on Windows endpoints. " +
-  "Map to ATT&CK, provide Sigma/KQL style logic, and give an Atomic test for validation.";
+let conversation = [];
+let latestAssistantText = "";
+let latestStructuredResponse = null;
+let isRequestInFlight = false;
 
 function setStatus(message, type = "") {
   statusMessage.textContent = message;
   statusMessage.classList.remove("ok", "error");
   if (type) {
     statusMessage.classList.add(type);
+  }
+}
+
+function setRuntimeBadge(text, className = "") {
+  runtimeBadge.textContent = text;
+  runtimeBadge.classList.remove("badge-ok", "badge-warn", "badge-error");
+  if (className) {
+    runtimeBadge.classList.add(className);
   }
 }
 
@@ -47,208 +57,287 @@ async function apiRequest(url, options = {}) {
   return payload;
 }
 
-function populateConfig(config) {
-  if (Array.isArray(config.personas)) {
-    const currentPersona = personaSelect.value || "ARCHITECT";
-    personaSelect.innerHTML = "";
-    config.personas.forEach((persona) => {
-      const option = document.createElement("option");
-      option.value = persona.id;
-      option.textContent = `${persona.id} - ${persona.label}`;
-      if (persona.id === currentPersona) {
-        option.selected = true;
-      }
-      personaSelect.appendChild(option);
-    });
-  }
-
-  if (Array.isArray(config.domains)) {
-    const currentDomain = domainSelect.value;
-    domainSelect.innerHTML = "";
-    const autoOption = document.createElement("option");
-    autoOption.value = "";
-    autoOption.textContent = "Auto (infer from query)";
-    domainSelect.appendChild(autoOption);
-
-    config.domains.forEach((domain) => {
-      const option = document.createElement("option");
-      option.value = domain;
-      option.textContent = domain;
-      if (domain === currentDomain) {
-        option.selected = true;
-      }
-      domainSelect.appendChild(option);
-    });
-  }
-}
-
-function readFormPayload() {
+function getSettingsFromForm() {
   return {
-    persona: personaSelect.value,
-    mode: modeSelect.value,
-    domain: domainSelect.value,
-    strategicObjective: objectiveInput.value.trim(),
-    userQuery: queryInput.value.trim(),
+    persona: String(personaSelect.value || "ARCHITECT"),
+    mode: String(modeSelect.value || ""),
+    domain: String(domainSelect.value || ""),
+    strategicObjective: String(objectiveInput.value || "").trim(),
+    useContext: Boolean(contextToggle.checked),
   };
 }
 
-function prunePayload(payload) {
-  const cleaned = {};
-  Object.entries(payload).forEach(([key, value]) => {
-    if (String(value || "").trim()) {
-      cleaned[key] = String(value).trim();
-    }
-  });
-  return cleaned;
+function persistSettings() {
+  const settings = getSettingsFromForm();
+  window.localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
 }
 
-function renderResponse(result) {
-  latestResponseText = result.responseText || "";
-  responseOutput.textContent =
-    latestResponseText || "No response text returned by API.";
-  jsonOutput.textContent = JSON.stringify(result, null, 2);
-  copyResponseButton.disabled = !latestResponseText;
-  downloadResponseButton.disabled = !latestResponseText;
-}
-
-function saveHistory() {
-  window.localStorage.setItem(HISTORY_KEY, JSON.stringify(historyItems));
-}
-
-function loadHistory() {
+function restoreSettings() {
   try {
-    const raw = window.localStorage.getItem(HISTORY_KEY);
-    historyItems = raw ? JSON.parse(raw) : [];
-    if (!Array.isArray(historyItems)) {
-      historyItems = [];
+    const raw = window.localStorage.getItem(SETTINGS_KEY);
+    if (!raw) {
+      return;
     }
+    const parsed = JSON.parse(raw);
+    personaSelect.value = parsed.persona || "ARCHITECT";
+    modeSelect.value = parsed.mode || "";
+    domainSelect.value = parsed.domain || "";
+    objectiveInput.value = parsed.strategicObjective || "";
+    contextToggle.checked = parsed.useContext !== false;
   } catch (_error) {
-    historyItems = [];
+    // Ignore corrupted local storage data.
   }
-  renderHistory();
 }
 
-function renderHistory() {
-  historyList.innerHTML = "";
-  if (!historyItems.length) {
-    const empty = document.createElement("li");
-    empty.className = "history-item";
-    empty.textContent = "No recent scenarios yet.";
-    historyList.appendChild(empty);
+function persistConversation() {
+  const trimmed = conversation.slice(-MAX_SAVED_MESSAGES);
+  window.localStorage.setItem(CHAT_KEY, JSON.stringify(trimmed));
+}
+
+function restoreConversation() {
+  try {
+    const raw = window.localStorage.getItem(CHAT_KEY);
+    if (!raw) {
+      return;
+    }
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      return;
+    }
+    conversation = parsed
+      .map((item) => ({
+        role: item.role === "assistant" ? "assistant" : "user",
+        content: String(item.content || "").trim(),
+        timestamp: item.timestamp || new Date().toISOString(),
+      }))
+      .filter((item) => item.content);
+  } catch (_error) {
+    conversation = [];
+  }
+}
+
+function formatTime(isoValue) {
+  return new Date(isoValue).toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function buildMessageNode(message, index) {
+  const article = document.createElement("article");
+  article.className = `message ${message.role}`;
+
+  const header = document.createElement("div");
+  header.className = "message-header";
+
+  const title = document.createElement("strong");
+  title.textContent = message.role === "assistant" ? "SEC SME Copilot" : "You";
+  header.appendChild(title);
+
+  const meta = document.createElement("span");
+  meta.className = "message-meta";
+  meta.textContent = formatTime(message.timestamp);
+  header.appendChild(meta);
+
+  if (message.role === "assistant") {
+    const copyButton = document.createElement("button");
+    copyButton.type = "button";
+    copyButton.className = "message-copy";
+    copyButton.textContent = "Copy";
+    copyButton.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(message.content);
+        setStatus("Assistant message copied.", "ok");
+      } catch (_error) {
+        setStatus("Clipboard copy failed.", "error");
+      }
+    });
+    header.appendChild(copyButton);
+  }
+
+  const body = document.createElement("pre");
+  body.className = "message-body";
+  body.textContent = message.content;
+
+  article.appendChild(header);
+  article.appendChild(body);
+  article.setAttribute("data-message-index", String(index));
+  return article;
+}
+
+function renderConversation() {
+  chatThread.innerHTML = "";
+  if (!conversation.length) {
+    const empty = document.createElement("div");
+    empty.className = "message system";
+    empty.innerHTML =
+      "<p><strong>Ready.</strong> Ask any security question. The assistant will adapt persona, mode, and domain automatically if needed.</p>";
+    chatThread.appendChild(empty);
     return;
   }
 
-  historyItems.forEach((item, index) => {
-    const li = document.createElement("li");
-    li.className = "history-item";
-    const button = document.createElement("button");
-    button.type = "button";
-    button.addEventListener("click", () => applyHistoryItem(index));
-    const queryPreview =
-      item.userQuery.length > 100
-        ? `${item.userQuery.slice(0, 100)}...`
-        : item.userQuery;
-    button.textContent = queryPreview;
-
-    const meta = document.createElement("span");
-    meta.className = "meta";
-    meta.textContent = `${item.persona} | ${item.mode || "AUTO"} | ${
-      item.domain || "AUTO"
-    } | ${new Date(item.timestamp).toLocaleString()}`;
-
-    button.appendChild(meta);
-    li.appendChild(button);
-    historyList.appendChild(li);
+  conversation.forEach((message, index) => {
+    chatThread.appendChild(buildMessageNode(message, index));
   });
+
+  chatThread.scrollTop = chatThread.scrollHeight;
 }
 
-function addToHistory(payload, responseText) {
-  const newItem = {
-    ...payload,
-    responseText,
+function appendMessage(role, content) {
+  const message = {
+    role,
+    content: String(content || "").trim(),
     timestamp: new Date().toISOString(),
   };
-  historyItems.unshift(newItem);
-  historyItems = historyItems.slice(0, MAX_HISTORY);
-  saveHistory();
-  renderHistory();
-}
-
-function applyHistoryItem(index) {
-  const item = historyItems[index];
-  if (!item) {
+  if (!message.content) {
     return;
   }
-  personaSelect.value = item.persona || "ARCHITECT";
-  modeSelect.value = item.mode || "";
-  domainSelect.value = item.domain || "";
-  objectiveInput.value = item.strategicObjective || "";
-  queryInput.value = item.userQuery || "";
-  if (item.responseText) {
-    responseOutput.textContent = item.responseText;
-    latestResponseText = item.responseText;
-    copyResponseButton.disabled = false;
-    downloadResponseButton.disabled = false;
-  }
-  setStatus("Loaded scenario from history.", "ok");
+  conversation.push(message);
+  conversation = conversation.slice(-MAX_SAVED_MESSAGES);
+  persistConversation();
+  renderConversation();
 }
 
-async function handleSubmit(event) {
+function renderStructuredResponse(result) {
+  latestStructuredResponse = result;
+  latestAssistantText = result?.responseText || "";
+  jsonOutput.textContent = JSON.stringify(result, null, 2);
+  copyLastButton.disabled = !latestAssistantText;
+  downloadLastButton.disabled = !latestAssistantText;
+}
+
+function setLoadingState(loading) {
+  isRequestInFlight = loading;
+  sendButton.disabled = loading;
+  messageInput.disabled = loading;
+  if (loading) {
+    sendButton.textContent = "Generating...";
+  } else {
+    sendButton.textContent = "Send";
+  }
+}
+
+function buildChatPayload(userMessage) {
+  const settings = getSettingsFromForm();
+  const payload = {
+    persona: settings.persona,
+    mode: settings.mode || undefined,
+    domain: settings.domain || undefined,
+    strategicObjective: settings.strategicObjective || undefined,
+    message: userMessage,
+  };
+
+  if (settings.useContext) {
+    payload.history = conversation
+      .slice(-MAX_CONTEXT_MESSAGES)
+      .map((item) => ({
+        role: item.role,
+        content: item.content,
+      }));
+  }
+
+  return payload;
+}
+
+async function handleChatSubmit(event) {
   event.preventDefault();
-
-  const payload = prunePayload(readFormPayload());
-  if (!payload.userQuery) {
-    setStatus("Please provide a scenario or request.", "error");
-    queryInput.focus();
+  if (isRequestInFlight) {
     return;
   }
 
-  submitButton.disabled = true;
-  setStatus("Generating SEC SME response...");
+  const message = String(messageInput.value || "").trim();
+  if (!message) {
+    setStatus("Enter a request before sending.", "error");
+    messageInput.focus();
+    return;
+  }
+
+  persistSettings();
+  appendMessage("user", message);
+  messageInput.value = "";
+  setLoadingState(true);
+  setStatus("Generating response...");
+
+  const payload = buildChatPayload(message);
 
   try {
-    const result = await apiRequest("/api/respond", {
+    const result = await apiRequest("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
-    renderResponse(result);
-    addToHistory(payload, result.responseText || "");
-    setStatus("Response generated successfully.", "ok");
+
+    appendMessage("assistant", result.responseText || "No response generated.");
+    renderStructuredResponse(result);
+
+    const providerLabel = result.fallbackUsed
+      ? "Fallback engine"
+      : `${result.provider || "llm"} (${result.model || "model"})`;
+    providerInfo.textContent = `Provider: ${providerLabel}`;
+
+    setStatus(
+      result.fallbackUsed
+        ? "Generated with fallback engine."
+        : "Generated with live AI provider.",
+      result.fallbackUsed ? "error" : "ok",
+    );
   } catch (error) {
+    appendMessage(
+      "assistant",
+      `Generation failed: ${error.message}\n\nTry again or verify your LLM provider configuration.`,
+    );
     setStatus(error.message, "error");
   } finally {
-    submitButton.disabled = false;
+    setLoadingState(false);
+    messageInput.focus();
   }
 }
 
-function handleReset() {
-  requestForm.reset();
-  modeSelect.value = "";
-  domainSelect.value = "";
-  responseOutput.textContent = "";
+function newChat() {
+  conversation = [];
+  latestAssistantText = "";
+  latestStructuredResponse = null;
   jsonOutput.textContent = "";
-  latestResponseText = "";
-  copyResponseButton.disabled = true;
-  downloadResponseButton.disabled = true;
-  setStatus("Form and outputs cleared.", "ok");
+  copyLastButton.disabled = true;
+  downloadLastButton.disabled = true;
+  window.localStorage.removeItem(CHAT_KEY);
+  renderConversation();
+  setStatus("Started a new chat.", "ok");
 }
 
-function handleSample() {
-  queryInput.value = sampleScenario;
-  personaSelect.value = "ARCHITECT";
-  modeSelect.value = "HUNT";
-  domainSelect.value = "Endpoint";
-  objectiveInput.value = "Script execution governance";
-  setStatus("Sample scenario loaded.", "ok");
+async function copyLastResponse() {
+  if (!latestAssistantText) {
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(latestAssistantText);
+    setStatus("Copied last assistant response.", "ok");
+  } catch (_error) {
+    setStatus("Clipboard copy failed.", "error");
+  }
 }
 
-async function handleLoadPrompt() {
+function downloadLastResponse() {
+  if (!latestAssistantText) {
+    return;
+  }
+  const blob = new Blob([latestAssistantText], { type: "text/markdown" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  link.href = url;
+  link.download = `sec-sme-chat-${stamp}.md`;
+  link.click();
+  URL.revokeObjectURL(url);
+  setStatus("Downloaded last response.", "ok");
+}
+
+async function loadPrompt() {
   loadPromptButton.disabled = true;
   setStatus("Loading system prompt...");
   try {
     const result = await apiRequest("/api/system-prompt");
-    promptOutput.textContent = result.prompt || "System prompt is empty.";
+    promptOutput.textContent = result.prompt || "Prompt file is empty.";
     promptDetails.open = true;
     setStatus("System prompt loaded.", "ok");
   } catch (error) {
@@ -258,50 +347,86 @@ async function handleLoadPrompt() {
   }
 }
 
-async function copyResponse() {
-  if (!latestResponseText) {
-    return;
-  }
+async function loadRuntime() {
   try {
-    await navigator.clipboard.writeText(latestResponseText);
-    setStatus("Response copied to clipboard.", "ok");
+    const runtime = await apiRequest("/api/runtime");
+    if (runtime.llm?.configured) {
+      setRuntimeBadge(
+        `AI Online · ${runtime.llm.model || "configured model"}`,
+        "badge-ok",
+      );
+      providerInfo.textContent = `Provider: ${
+        runtime.llm.provider || "llm"
+      } (${runtime.llm.baseUrl})`;
+    } else {
+      setRuntimeBadge("AI Offline · Fallback mode", "badge-warn");
+      providerInfo.textContent =
+        "No API key configured. The deterministic fallback engine will be used.";
+    }
   } catch (_error) {
-    setStatus("Clipboard copy failed in this browser context.", "error");
+    setRuntimeBadge("Runtime unavailable", "badge-error");
   }
 }
 
-function downloadResponse() {
-  if (!latestResponseText) {
-    return;
+function populateConfig(config) {
+  if (Array.isArray(config.personas)) {
+    const current = personaSelect.value || "ARCHITECT";
+    personaSelect.innerHTML = "";
+    config.personas.forEach((persona) => {
+      const option = document.createElement("option");
+      option.value = persona.id;
+      option.textContent = `${persona.id} - ${persona.label}`;
+      option.selected = persona.id === current;
+      personaSelect.appendChild(option);
+    });
   }
-  const blob = new Blob([latestResponseText], { type: "text/markdown" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-  link.href = url;
-  link.download = `sec-sme-response-${stamp}.md`;
-  link.click();
-  URL.revokeObjectURL(url);
-  setStatus("Response downloaded.", "ok");
+
+  if (Array.isArray(config.domains)) {
+    const current = domainSelect.value || "";
+    domainSelect.innerHTML = "";
+    const auto = document.createElement("option");
+    auto.value = "";
+    auto.textContent = "Auto infer";
+    domainSelect.appendChild(auto);
+    config.domains.forEach((domain) => {
+      const option = document.createElement("option");
+      option.value = domain;
+      option.textContent = domain;
+      option.selected = domain === current;
+      domainSelect.appendChild(option);
+    });
+  }
+}
+
+function handleInputKeydown(event) {
+  if (event.key === "Enter" && !event.shiftKey) {
+    event.preventDefault();
+    chatForm.requestSubmit();
+  }
 }
 
 async function bootstrap() {
-  setStatus("Initializing application...");
-  loadHistory();
+  setStatus("Initializing...");
+  restoreConversation();
+  renderConversation();
+
   try {
     const config = await apiRequest("/api/config");
     populateConfig(config);
+    restoreSettings();
+    await loadRuntime();
     setStatus("Ready.", "ok");
   } catch (error) {
-    setStatus(`Config load failed: ${error.message}`, "error");
+    setStatus(`Startup failed: ${error.message}`, "error");
   }
 }
 
-requestForm.addEventListener("submit", handleSubmit);
-sampleButton.addEventListener("click", handleSample);
-resetButton.addEventListener("click", handleReset);
-loadPromptButton.addEventListener("click", handleLoadPrompt);
-copyResponseButton.addEventListener("click", copyResponse);
-downloadResponseButton.addEventListener("click", downloadResponse);
+chatForm.addEventListener("submit", handleChatSubmit);
+newChatButton.addEventListener("click", newChat);
+copyLastButton.addEventListener("click", copyLastResponse);
+downloadLastButton.addEventListener("click", downloadLastResponse);
+loadPromptButton.addEventListener("click", loadPrompt);
+settingsForm.addEventListener("change", persistSettings);
+messageInput.addEventListener("keydown", handleInputKeydown);
 
 bootstrap();

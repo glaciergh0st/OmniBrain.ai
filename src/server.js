@@ -1,29 +1,61 @@
 const express = require("express");
+const rateLimit = require("express-rate-limit");
 const fs = require("node:fs/promises");
 const path = require("node:path");
+const { config, getRuntimeInfo } = require("./config");
 const {
   PERSONA_CONFIG,
   MODES,
   DOMAIN_OPTIONS,
   generateSecSmeResponse,
 } = require("./secSmeEngine");
+const { generateChatResponse } = require("./chatService");
+const { setSecurityHeaders } = require("./security");
 
 const app = express();
-const PORT = Number(process.env.PORT || 3000);
-const PUBLIC_DIR = path.resolve(__dirname, "..", "public");
-const PROMPT_PATH = path.resolve(__dirname, "..", "SEC_SME_SYSTEM_PROMPT.md");
+const PORT = config.app.port;
+const PUBLIC_DIR = config.app.publicDir;
+const PROMPT_PATH = config.app.promptPath;
+
+let cachedFrameworkPrompt = "";
+
+async function getFrameworkPrompt() {
+  if (cachedFrameworkPrompt) {
+    return cachedFrameworkPrompt;
+  }
+  cachedFrameworkPrompt = await fs.readFile(PROMPT_PATH, "utf8");
+  return cachedFrameworkPrompt;
+}
+
+const apiLimiter = rateLimit({
+  windowMs: config.api.rateLimitWindowMs,
+  max: config.api.rateLimitMaxRequests,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    ok: false,
+    error: "Rate limit exceeded. Please retry shortly.",
+  },
+});
 
 app.disable("x-powered-by");
-app.use(express.json({ limit: "1mb" }));
+if (config.app.trustProxy) {
+  app.set("trust proxy", 1);
+}
+app.use(setSecurityHeaders);
+app.use(express.json({ limit: config.api.bodyLimit }));
 app.use(express.urlencoded({ extended: false }));
 app.use(express.static(PUBLIC_DIR));
+app.use("/api", apiLimiter);
 
 app.get("/api/health", (_req, res) => {
   res.json({
     status: "ok",
-    service: "sec-sme-webapp",
+    service: config.app.name,
     timestamp: new Date().toISOString(),
     uptimeSec: Math.round(process.uptime()),
+    llmConfigured: config.llm.enabled,
+    model: config.llm.model,
   });
 });
 
@@ -38,12 +70,35 @@ app.get("/api/config", (_req, res) => {
   });
 });
 
+app.get("/api/runtime", (_req, res) => {
+  res.json(getRuntimeInfo());
+});
+
 app.get("/api/system-prompt", async (_req, res, next) => {
   try {
-    const prompt = await fs.readFile(PROMPT_PATH, "utf8");
+    const prompt = await getFrameworkPrompt();
     res.json({ prompt });
   } catch (error) {
     next(error);
+  }
+});
+
+app.post("/api/chat", async (req, res, next) => {
+  try {
+    const frameworkPrompt = await getFrameworkPrompt();
+    const response = await generateChatResponse(req.body, frameworkPrompt);
+    if (!response.ok) {
+      return res.status(response.statusCode || 400).json({
+        ok: false,
+        errors: response.errors,
+      });
+    }
+    return res.json({
+      ok: true,
+      ...response.result,
+    });
+  } catch (error) {
+    return next(error);
   }
 });
 
@@ -88,7 +143,11 @@ app.use((error, _req, res, _next) => {
 if (require.main === module) {
   app.listen(PORT, () => {
     // eslint-disable-next-line no-console
-    console.log(`SEC SME app listening on http://localhost:${PORT}`);
+    console.log(
+      `SEC SME app listening on http://localhost:${PORT} (LLM: ${
+        config.llm.enabled ? "configured" : "fallback mode"
+      })`,
+    );
   });
 }
 
