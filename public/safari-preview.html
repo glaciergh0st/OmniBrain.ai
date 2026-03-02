@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SEC SME - Instant Safari Preview</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0b111c;
+        --panel: #11192b;
+        --border: #2a3550;
+        --text: #e7eeff;
+        --muted: #a2b1cf;
+        --accent: #4ca3ff;
+        --ok: #64d9a6;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family:
+          Inter,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+        background: radial-gradient(circle at 85% -10%, #1a2f54 0%, var(--bg) 50%);
+        color: var(--text);
+      }
+
+      .wrap {
+        max-width: 1150px;
+        margin: 0 auto;
+        padding: 1rem;
+      }
+
+      .header {
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 1rem;
+        background: rgba(16, 25, 43, 0.85);
+      }
+
+      .header h1 {
+        margin: 0;
+        font-size: 1.35rem;
+      }
+
+      .subtitle {
+        margin: 0.4rem 0 0.8rem;
+        color: var(--muted);
+      }
+
+      .pill {
+        display: inline-block;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        padding: 0.28rem 0.65rem;
+        margin: 0 0.4rem 0.35rem 0;
+        font-size: 0.78rem;
+        color: var(--muted);
+        background: #17233a;
+      }
+
+      .layout {
+        margin-top: 1rem;
+        display: grid;
+        grid-template-columns: 360px 1fr;
+        gap: 1rem;
+      }
+
+      .panel {
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: rgba(16, 25, 43, 0.85);
+        padding: 1rem;
+      }
+
+      .panel h2 {
+        margin-top: 0;
+        font-size: 1rem;
+      }
+
+      .scenario-btn {
+        width: 100%;
+        text-align: left;
+        border: 1px solid var(--border);
+        background: #182843;
+        color: var(--text);
+        border-radius: 10px;
+        padding: 0.7rem;
+        margin-bottom: 0.55rem;
+        cursor: pointer;
+      }
+
+      .scenario-btn:hover {
+        border-color: var(--accent);
+      }
+
+      .scenario-btn .meta {
+        display: block;
+        color: var(--muted);
+        font-size: 0.76rem;
+        margin-bottom: 0.25rem;
+      }
+
+      .actions {
+        margin-top: 0.75rem;
+        display: flex;
+        gap: 0.55rem;
+        flex-wrap: wrap;
+      }
+
+      .actions button,
+      .actions a {
+        border: 1px solid var(--border);
+        background: #1a2f53;
+        color: var(--text);
+        border-radius: 10px;
+        padding: 0.5rem 0.75rem;
+        text-decoration: none;
+        cursor: pointer;
+      }
+
+      pre {
+        margin: 0;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: #0d1728;
+        padding: 0.85rem;
+        min-height: 520px;
+        white-space: pre-wrap;
+        line-height: 1.42;
+        font-size: 0.84rem;
+        overflow-x: auto;
+      }
+
+      .status {
+        margin-top: 0.5rem;
+        color: var(--ok);
+        font-size: 0.86rem;
+      }
+
+      @media (max-width: 980px) {
+        .layout {
+          grid-template-columns: 1fr;
+        }
+
+        pre {
+          min-height: 360px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="header">
+        <h1>SEC SME Web App - Instant Safari Preview</h1>
+        <p class="subtitle">
+          Static no-install showcase of what was built (persona-driven output,
+          ATT&CK mapping, telemetry, command, query, and validation layers).
+        </p>
+        <span class="pill">No npm install needed</span>
+        <span class="pill">Works in Safari</span>
+        <span class="pill">Click scenario buttons to preview outputs</span>
+      </header>
+
+      <main class="layout">
+        <section class="panel">
+          <h2>Demo Scenarios</h2>
+          <button class="scenario-btn" data-scenario="endpoint">
+            <span class="meta">ARCHITECT | HUNT | Endpoint</span>
+            Hunt suspicious PowerShell encoded commands
+          </button>
+          <button class="scenario-btn" data-scenario="cloud">
+            <span class="meta">STRATEGIST | TEACH | Cloud</span>
+            Teach AWS valid-account abuse detection and prevention
+          </button>
+          <button class="scenario-btn" data-scenario="supply">
+            <span class="meta">FORENSICS | WORK | Supply Chain</span>
+            Investigate CI/pipeline compromise indicators
+          </button>
+
+          <div class="actions">
+            <button id="copyBtn" type="button">Copy Output</button>
+            <button id="downloadBtn" type="button">Download .md</button>
+            <a href="https://github.com/glaciergh0st/OmniBrain.ai" target="_blank" rel="noreferrer noopener">View Repository</a>
+          </div>
+          <p id="status" class="status">Loaded endpoint scenario preview.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Rendered Output Sample</h2>
+          <pre id="output"></pre>
+        </section>
+      </main>
+    </div>
+
+    <script>
+      const scenarios = {
+        endpoint: `[PERSONA]: ARCHITECT - Tier-3 Security Architect & Detection Engineer
+[MODE]: HUNT
+[SUBJECT AREA]: Endpoint | Script execution governance
+
+1. Adversary Mapping (MITRE)
+- Technique: PowerShell (T1059.001)
+- Context: Adversaries execute malicious PowerShell to stage payloads, disable controls, or run post-exploitation logic.
+
+2. Technical Execution (The How-To)
+- Tool Choice: Sigma + KQL + Atomic Red Team
+- Telemetry Requirements:
+  - Sysmon (Event IDs 1, 3, 7, 8, 10, 11, 13)
+  - Windows Security logs (4624, 4688, 4698, 4720, 4732)
+  - EDR process lineage and script telemetry
+  - PowerShell ScriptBlock logs (4104)
+- Command:
+\`\`\`bash
+# Run Atomic test coverage for PowerShell execution detection validation
+pwsh -NoProfile -Command "Invoke-AtomicTest T1059.001 -TestNumbers 1 -GetPrereqs -ExecutionLogPath ./atomic-T1059.001.log"
+\`\`\`
+- Query:
+\`\`\`kql
+// Detection logic purpose
+DeviceProcessEvents
+| where FileName in~ ("powershell.exe", "pwsh.exe")
+| where ProcessCommandLine has_any ("-enc", "IEX", "DownloadString", "Bypass")
+| project Timestamp, DeviceName, AccountName, FileName, ProcessCommandLine, InitiatingProcessFileName
+\`\`\`
+
+3. Strategic Prevention (Higher Hierarchy)
+- Architectural Fix: Enforce constrained PowerShell language mode, signed-script execution policy, and endpoint application control allow-lists.
+- D3FEND Mapping: D3-EXF (Execution Prevention) + D3-PSA (Process Spawn Analysis)
+
+4. Validation (Proof)
+- Test Command: pwsh -NoProfile -Command "Invoke-AtomicTest T1059.001 -TestNumbers 1"
+- Success Criteria: Test execution triggers high-fidelity alert with complete command-line and parent process lineage.
+- Failure Signal: No alert or missing ScriptBlock/process lineage indicates telemetry or detection gap.`,
+
+        cloud: `[PERSONA]: STRATEGIST - GRC & CISO
+[MODE]: TEACH
+[SUBJECT AREA]: Cloud | Least privilege IAM
+
+1. Adversary Mapping (MITRE)
+- Technique: Valid Accounts (T1078)
+- Context: Adversaries use stolen credentials or session tokens to operate as legitimate users in cloud control planes.
+
+2. Technical Execution (The How-To)
+- Tool Choice: MITRE D3FEND + ATT&CK Decider + Cloud Custodian
+- Telemetry Requirements:
+  - AWS CloudTrail management + data events
+  - MFA challenge outcomes
+  - Geolocation and impossible-travel signals
+- Command:
+\`\`\`bash
+# Run IAM hardening checks to baseline cloud identity posture
+prowler aws -g iam --output-formats json --output-directory ./prowler-output
+\`\`\`
+- Query:
+\`\`\`kql
+// Identify unusual spikes in login and role-assumption activity
+CloudTrail
+| where EventName in ("ConsoleLogin", "AssumeRole", "GetSessionToken", "CreateAccessKey")
+| summarize Attempts=count(), DistinctIPs=dcount(SourceIpAddress) by UserIdentityArn, EventName, bin(TimeGenerated, 30m)
+| where Attempts > 5 or DistinctIPs > 2
+\`\`\`
+- Learning Rule Applied:
+\`\`\`bash
+# Installation / setup
+pip3 install prowler
+
+# Technique-specific execution
+prowler aws -g iam --output-formats json --output-directory ./prowler-learning
+\`\`\`
+- Observation: Output includes failed/pass checks with service, region, and remediation metadata.
+
+3. Strategic Prevention (Higher Hierarchy)
+- Architectural Fix: Require phishing-resistant MFA, enforce just-in-time role elevation, and remove long-lived access keys via centralized identity federation.
+- D3FEND Mapping: D3-MFA + D3-UAP
+
+4. Validation (Proof)
+- Test Command: python3 -m pacu --module iam__enum_permissions --session sec-sme-lab
+- Success Criteria: Abnormal account use is rapidly detected and restricted by conditional access and role governance.
+- Failure Signal: Credential reuse from novel IP/geo proceeds undetected or unchallenged.`,
+
+        supply: `[PERSONA]: FORENSICS - DFIR Lead
+[MODE]: WORK
+[SUBJECT AREA]: Supply Chain | Pipeline trust hardening
+
+1. Adversary Mapping (MITRE)
+- Technique: Supply Chain Compromise (T1195)
+- Context: Adversaries compromise build systems or dependencies to insert malicious code into trusted release pipelines.
+
+2. Technical Execution (The How-To)
+- Tool Choice: Atomic Red Team + Caldera + Sigma
+- Telemetry Requirements:
+  - CI/CD execution logs and workflow provenance
+  - Artifact repository audit logs
+  - Package signature and provenance attestations
+- Command:
+\`\`\`bash
+# Query vulnerable dependencies and suspicious package publishing context
+steampipe query "select repository, name, version, vulnerable from github_repository_dependency where vulnerable = true;"
+\`\`\`
+- Query:
+\`\`\`kql
+// Detect unusual workflow and package actions in short time windows
+PipelineAuditLogs
+| where Action in ("workflow_dispatch", "package_publish", "token_create", "secrets_access")
+| summarize Events=count(), Actors=dcount(Actor) by Repo, Action, bin(TimeGenerated, 1h)
+| where Events > 3 and Actors > 1
+\`\`\`
+
+3. Strategic Prevention (Higher Hierarchy)
+- Architectural Fix: Enforce signed commits/tags, provenance attestations (SLSA), and immutable build environments with OIDC short-lived credentials.
+- D3FEND Mapping: D3-SCA + D3-BPM
+
+4. Validation (Proof)
+- Test Command: caldera --operation supply-chain-emulation --adversary custom_t1195
+- Success Criteria: Unauthorized package/pipeline actions are blocked and produce high-confidence detections.
+- Failure Signal: Suspicious publish or token actions occur without control-plane containment.`
+      };
+
+      const output = document.getElementById("output");
+      const status = document.getElementById("status");
+      const copyBtn = document.getElementById("copyBtn");
+      const downloadBtn = document.getElementById("downloadBtn");
+
+      let currentKey = "endpoint";
+
+      function render(key) {
+        currentKey = key;
+        output.textContent = scenarios[key];
+        status.textContent = `Loaded ${key} scenario preview.`;
+      }
+
+      document.querySelectorAll(".scenario-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          render(btn.dataset.scenario);
+        });
+      });
+
+      copyBtn.addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText(scenarios[currentKey]);
+          status.textContent = "Copied output to clipboard.";
+        } catch {
+          status.textContent = "Clipboard copy not permitted in this browser context.";
+        }
+      });
+
+      downloadBtn.addEventListener("click", () => {
+        const blob = new Blob([scenarios[currentKey]], { type: "text/markdown" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `sec-sme-safari-preview-${currentKey}.md`;
+        a.click();
+        URL.revokeObjectURL(url);
+        status.textContent = "Downloaded preview output.";
+      });
+
+      render("endpoint");
+    </script>
+  </body>
+</html>
