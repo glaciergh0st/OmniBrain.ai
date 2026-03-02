@@ -4,7 +4,7 @@ SEC SME Copilot is a full-stack cybersecurity assistant that applies the **SEC S
 
 It supports:
 
-- real AI generation via an OpenAI-compatible provider (for broad, arbitrary user input),
+- real AI generation via **DeepSeek API** (for broad, arbitrary user input),
 - deterministic fallback mode when no model key is configured,
 - clean chat UI,
 - production hardening (security headers, rate limiting, runtime health/config visibility).
@@ -16,13 +16,20 @@ It supports:
 ### 1) Production Chat Experience
 
 - Clean chat-first UI at `/`
-- Persona: `ARCHITECT`, `OFFENSIVE`, `FORENSICS`, `STRATEGIST`
+- Lead Persona + multi-role team coverage: `ARCHITECT`, `OFFENSIVE`, `FORENSICS`, `STRATEGIST`
 - Mode: `TEACH`, `HUNT`, `WORK`, or auto
 - Domain: `Endpoint`, `Cloud`, `Network`, `Identity`, `Supply Chain`, or auto
 - Optional strategic objective override
+- Mission templates (hunt, cloud hardening, IR, board brief)
 - Context toggle (include/exclude conversation history)
 - Copy/download latest assistant response
 - Local chat persistence for session continuity
+- Mission Control Board with:
+  - role coverage allocation
+  - execution phases
+  - priority backlog
+  - KPI targets
+  - risk register
 
 ### 2) AI + Fallback Execution
 
@@ -34,6 +41,7 @@ It supports:
   - command/query blocks
   - prevention hierarchy
   - validation criteria
+  - lean-team staffing orchestration artifacts
 
 ### 3) Production API Hardening
 
@@ -77,7 +85,7 @@ It supports:
 
 ---
 
-## Environment Variables
+## Environment Variables (DeepSeek First)
 
 Create a `.env` file (or set environment variables in your platform):
 
@@ -87,11 +95,17 @@ PORT=3000
 NODE_ENV=production
 TRUST_PROXY=true
 
-# LLM (OpenAI-compatible)
-OPENAI_API_KEY=your_key_here
-LLM_PROVIDER=openai-compatible
-LLM_BASE_URL=https://api.openai.com/v1
-LLM_MODEL=gpt-4.1-mini
+# DeepSeek API
+DEEPSEEK_API_KEY=your_key_here
+LLM_PROVIDER=deepseek
+LLM_BASE_URL=https://api.deepseek.com/v1
+
+# Model options:
+# - deepseek-chat (DeepSeek-V3): general use
+# - deepseek-reasoner (DeepSeek-R1): deeper math/coding/logic
+LLM_MODEL=deepseek-chat
+LLM_ALLOWED_MODELS=deepseek-chat,deepseek-reasoner
+
 LLM_TIMEOUT_MS=45000
 LLM_TEMPERATURE=0.25
 LLM_MAX_OUTPUT_TOKENS=1800
@@ -100,7 +114,7 @@ LLM_MAX_OUTPUT_TOKENS=1800
 RATE_LIMIT_WINDOW_MS=60000
 RATE_LIMIT_MAX_REQUESTS=120
 
-# Optional: if true, fail requests when LLM not configured
+# Optional: if true, fail requests when provider not configured
 REQUIRE_LLM=false
 ```
 
@@ -150,7 +164,7 @@ Runtime config summary (sanitized):
 
 ### `GET /api/config`
 
-Returns supported personas, modes, and domains.
+Returns supported personas, modes, domains, and available LLM models.
 
 ### `GET /api/system-prompt`
 
@@ -165,7 +179,9 @@ Example request:
 ```json
 {
   "persona": "ARCHITECT",
+  "teamPersonas": ["ARCHITECT", "FORENSICS", "STRATEGIST"],
   "mode": "HUNT",
+  "model": "deepseek-reasoner",
   "domain": "Identity",
   "strategicObjective": "Session/token abuse prevention",
   "message": "Investigate suspicious OAuth refresh token abuse in Entra ID and provide KQL detection and validation.",
@@ -175,6 +191,16 @@ Example request:
   ]
 }
 ```
+
+Response includes additional planning fields for small security teams:
+
+- `teamPersonas`
+- `model`
+- `roleCoverage`
+- `executionPhases`
+- `priorityBacklog`
+- `kpis`
+- `riskRegister`
 
 ### `POST /api/respond` (Compatibility Endpoint)
 
@@ -201,6 +227,8 @@ Coverage includes:
 
 ## Deployment Notes
 
-- Set `OPENAI_API_KEY` (or `LLM_API_KEY`) for live AI mode.
+- Set `DEEPSEEK_API_KEY` (or `LLM_API_KEY`) for live AI mode.
+- Default API base URL is `https://api.deepseek.com/v1`.
+- Frontend and API both support choosing `deepseek-chat` or `deepseek-reasoner`.
 - For reverse proxies/load balancers, keep `TRUST_PROXY=true`.
 - For strict production behavior, set `REQUIRE_LLM=true` so `/api/chat` fails closed when provider is unavailable.

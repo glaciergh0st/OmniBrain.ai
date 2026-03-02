@@ -29,11 +29,36 @@ function parseString(value, defaultValue) {
   return normalized;
 }
 
-const baseUrl = parseString(process.env.LLM_BASE_URL, "https://api.openai.com/v1");
+function parseStringList(value, defaultValues = []) {
+  const raw = String(value || "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+  if (!raw.length) {
+    return defaultValues;
+  }
+  return Array.from(new Set(raw));
+}
+
+const baseUrl = parseString(
+  process.env.LLM_BASE_URL,
+  "https://api.deepseek.com/v1",
+);
 const llmApiKey = parseString(
-  process.env.LLM_API_KEY || process.env.OPENAI_API_KEY,
+  process.env.LLM_API_KEY || process.env.DEEPSEEK_API_KEY || process.env.OPENAI_API_KEY,
   "",
 );
+const allowedModels = parseStringList(process.env.LLM_ALLOWED_MODELS, [
+  "deepseek-chat",
+  "deepseek-reasoner",
+]);
+const defaultModel = parseString(
+  process.env.LLM_MODEL,
+  allowedModels[0] || "deepseek-chat",
+);
+const resolvedModel = allowedModels.includes(defaultModel)
+  ? defaultModel
+  : allowedModels[0] || "deepseek-chat";
 
 const config = {
   app: {
@@ -50,10 +75,11 @@ const config = {
     rateLimitMaxRequests: parseNumber(process.env.RATE_LIMIT_MAX_REQUESTS, 120),
   },
   llm: {
-    provider: parseString(process.env.LLM_PROVIDER, "openai-compatible"),
+    provider: parseString(process.env.LLM_PROVIDER, "deepseek"),
     baseUrl: baseUrl.replace(/\/$/, ""),
     apiKey: llmApiKey,
-    model: parseString(process.env.LLM_MODEL, "gpt-4.1-mini"),
+    model: resolvedModel,
+    allowedModels,
     timeoutMs: parseNumber(process.env.LLM_TIMEOUT_MS, 45_000),
     temperature: parseNumber(process.env.LLM_TEMPERATURE, 0.25),
     maxOutputTokens: parseNumber(process.env.LLM_MAX_OUTPUT_TOKENS, 1800),
@@ -70,6 +96,7 @@ function getRuntimeInfo() {
       provider: config.llm.provider,
       configured: config.llm.enabled,
       model: config.llm.model,
+      availableModels: config.llm.allowedModels,
       baseUrl: config.llm.baseUrl,
       requireConfigured: config.llm.requireConfigured,
       timeoutMs: config.llm.timeoutMs,

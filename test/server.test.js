@@ -47,6 +47,9 @@ test("GET /api/config returns persona/mode/domain lists", async () => {
   assert.ok(payload.personas.some((persona) => persona.id === "ARCHITECT"));
   assert.deepEqual(payload.modes, ["TEACH", "HUNT", "WORK"]);
   assert.ok(payload.domains.includes("Endpoint"));
+  assert.ok(Array.isArray(payload.llmModels));
+  assert.ok(payload.llmModels.includes("deepseek-chat"));
+  assert.equal(typeof payload.defaultModel, "string");
 });
 
 test("GET /api/runtime returns runtime configuration status", async () => {
@@ -56,6 +59,8 @@ test("GET /api/runtime returns runtime configuration status", async () => {
   assert.equal(payload.service, "sec-sme-webapp");
   assert.equal(typeof payload.llm.configured, "boolean");
   assert.equal(typeof payload.rateLimit.maxRequests, "number");
+  assert.ok(Array.isArray(payload.llm.availableModels));
+  assert.ok(payload.llm.availableModels.includes("deepseek-chat"));
 });
 
 test("POST /api/chat handles arbitrary user input", async () => {
@@ -66,7 +71,9 @@ test("POST /api/chat handles arbitrary user input", async () => {
     },
     body: JSON.stringify({
       persona: "ARCHITECT",
+      teamPersonas: ["ARCHITECT", "FORENSICS", "STRATEGIST"],
       mode: "HUNT",
+      model: "deepseek-reasoner",
       message:
         "Create a hunt plan for suspicious OAuth token abuse and include ATT&CK, telemetry, command, query, and validation proof.",
     }),
@@ -78,6 +85,12 @@ test("POST /api/chat handles arbitrary user input", async () => {
   assert.match(payload.responseText, /\[PERSONA\]:/);
   assert.ok(["llm", "fallback-engine"].includes(payload.provider));
   assert.equal(typeof payload.fallbackUsed, "boolean");
+  assert.ok(Array.isArray(payload.teamPersonas));
+  assert.ok(payload.teamPersonas.length >= 1);
+  assert.ok(Array.isArray(payload.roleCoverage));
+  assert.ok(Array.isArray(payload.executionPhases));
+  assert.ok(Array.isArray(payload.priorityBacklog));
+  assert.equal(typeof payload.model, "string");
 });
 
 test("POST /api/chat validates required message", async () => {
@@ -97,6 +110,44 @@ test("POST /api/chat validates required message", async () => {
   const payload = await response.json();
   assert.equal(payload.ok, false);
   assert.ok(payload.errors.some((error) => error.includes("message")));
+});
+
+test("POST /api/chat validates team personas", async () => {
+  const response = await fetch(`${baseUrl}/api/chat`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      persona: "ARCHITECT",
+      teamPersonas: ["ARCHITECT", "INVALID_PERSONA"],
+      message: "build mission plan",
+    }),
+  });
+
+  assert.equal(response.status, 400);
+  const payload = await response.json();
+  assert.equal(payload.ok, false);
+  assert.ok(payload.errors.some((error) => error.includes("teamPersonas")));
+});
+
+test("POST /api/chat validates unknown model name", async () => {
+  const response = await fetch(`${baseUrl}/api/chat`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      persona: "ARCHITECT",
+      model: "unknown-model",
+      message: "Build a mission plan.",
+    }),
+  });
+
+  assert.equal(response.status, 400);
+  const payload = await response.json();
+  assert.equal(payload.ok, false);
+  assert.ok(payload.errors.some((error) => error.includes("model")));
 });
 
 test("POST /api/respond returns formatted SEC SME response", async () => {

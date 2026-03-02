@@ -67,6 +67,8 @@ app.get("/api/config", (_req, res) => {
     })),
     modes: MODES,
     domains: DOMAIN_OPTIONS,
+    llmModels: config.llm.allowedModels,
+    defaultModel: config.llm.model,
   });
 });
 

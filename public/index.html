@@ -35,16 +35,45 @@
 
       <main class="workspace">
         <aside class="card controls">
-          <h2>Session Controls</h2>
+          <h2>Mission Design Console</h2>
           <form id="settingsForm">
             <div class="field-row">
-              <label for="personaSelect">Persona</label>
+              <label for="personaSelect">Lead Persona</label>
               <select id="personaSelect" name="persona" required>
                 <option value="ARCHITECT">ARCHITECT</option>
                 <option value="OFFENSIVE">OFFENSIVE</option>
                 <option value="FORENSICS">FORENSICS</option>
                 <option value="STRATEGIST">STRATEGIST</option>
               </select>
+            </div>
+
+            <div class="field-row">
+              <label>Lean Team Role Coverage</label>
+              <div id="teamPersonaGrid" class="persona-grid">
+                <button
+                  class="persona-tile active"
+                  type="button"
+                  data-persona="ARCHITECT"
+                >
+                  <strong>ARCHITECT</strong>
+                  <span>Detection + telemetry design</span>
+                </button>
+                <button class="persona-tile" type="button" data-persona="OFFENSIVE">
+                  <strong>OFFENSIVE</strong>
+                  <span>Adversary emulation + abuse paths</span>
+                </button>
+                <button class="persona-tile" type="button" data-persona="FORENSICS">
+                  <strong>FORENSICS</strong>
+                  <span>Incident artifacts + timeline proof</span>
+                </button>
+                <button class="persona-tile" type="button" data-persona="STRATEGIST">
+                  <strong>STRATEGIST</strong>
+                  <span>Risk, policy, and business alignment</span>
+                </button>
+              </div>
+              <p class="hint">
+                Select all roles your small team must cover in this mission.
+              </p>
             </div>
 
             <div class="field-row">
@@ -55,6 +84,18 @@
                 <option value="HUNT">HUNT</option>
                 <option value="WORK">WORK</option>
               </select>
+            </div>
+
+            <div class="field-row">
+              <label for="modelSelect">AI Model</label>
+              <select id="modelSelect" name="model">
+                <option value="deepseek-chat">deepseek-chat</option>
+                <option value="deepseek-reasoner">deepseek-reasoner</option>
+              </select>
+              <p class="hint">
+                Use <code>deepseek-chat</code> for general work and
+                <code>deepseek-reasoner</code> for deeper logic/coding analysis.
+              </p>
             </div>
 
             <div class="field-row">
@@ -77,6 +118,24 @@
             <div class="field-row field-check">
               <input id="contextToggle" type="checkbox" checked />
               <label for="contextToggle">Use chat history context</label>
+            </div>
+
+            <div class="field-row">
+              <label>Quick Mission Templates</label>
+              <div id="templateButtons" class="template-grid">
+                <button type="button" class="template-btn" data-template="hunt">
+                  Threat Hunt
+                </button>
+                <button type="button" class="template-btn" data-template="cloud">
+                  Cloud Hardening
+                </button>
+                <button type="button" class="template-btn" data-template="ir">
+                  Incident Response
+                </button>
+                <button type="button" class="template-btn" data-template="board">
+                  Board Brief
+                </button>
+              </div>
             </div>
           </form>
 
@@ -116,8 +175,38 @@
         </section>
 
         <aside class="card inspector">
-          <h2>Last Structured Response</h2>
-          <pre id="jsonOutput" class="output output-json"></pre>
+          <h2>Mission Control Board</h2>
+
+          <section class="board-block">
+            <h3>Role Coverage</h3>
+            <div id="roleCoverageList" class="board-stack"></div>
+          </section>
+
+          <section class="board-block">
+            <h3>Execution Phases</h3>
+            <ol id="phaseList" class="phase-list"></ol>
+          </section>
+
+          <section class="board-block">
+            <h3>Priority Backlog</h3>
+            <ul id="backlogList" class="mini-list"></ul>
+          </section>
+
+          <section class="board-block split">
+            <div>
+              <h3>KPI Targets</h3>
+              <ul id="kpiList" class="mini-list"></ul>
+            </div>
+            <div>
+              <h3>Risk Register</h3>
+              <ul id="riskList" class="mini-list risk-list"></ul>
+            </div>
+          </section>
+
+          <details>
+            <summary>Structured JSON</summary>
+            <pre id="jsonOutput" class="output output-json"></pre>
+          </details>
         </aside>
       </main>
     </div>

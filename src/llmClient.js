@@ -30,13 +30,14 @@ function parseContentFromChoice(choice) {
   return "";
 }
 
-async function callOpenAiCompatible({ messages }) {
+async function callOpenAiCompatible({ messages, model }) {
   if (!config.llm.enabled) {
     throw new Error("LLM is not configured.");
   }
 
   const endpoint = `${normalizeBaseUrl(config.llm.baseUrl)}/chat/completions`;
   const timeout = withTimeout(undefined, config.llm.timeoutMs);
+  const selectedModel = String(model || "").trim() || config.llm.model;
 
   try {
     const response = await fetch(endpoint, {
@@ -47,7 +48,7 @@ async function callOpenAiCompatible({ messages }) {
         Authorization: `Bearer ${config.llm.apiKey}`,
       },
       body: JSON.stringify({
-        model: config.llm.model,
+        model: selectedModel,
         messages,
         temperature: config.llm.temperature,
         max_tokens: config.llm.maxOutputTokens,
@@ -72,7 +73,7 @@ async function callOpenAiCompatible({ messages }) {
     return {
       text,
       usage: payload.usage || null,
-      model: payload.model || config.llm.model,
+      model: payload.model || selectedModel,
     };
   } finally {
     timeout.clear();
@@ -124,6 +125,42 @@ function clampArrayStrings(value, limit = 8) {
     .slice(0, limit);
 }
 
+function clampObjectArray(value, limit = 8) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .filter((item) => item && typeof item === "object")
+    .slice(0, limit);
+}
+
+function normalizeRoleCoverage(value) {
+  return clampObjectArray(value, 8).map((item) => ({
+    persona: String(item.persona || "").trim(),
+    responsibilities: clampArrayStrings(item.responsibilities, 6),
+    timeAllocationPct: Number(item.timeAllocationPct) || 0,
+    deliverables: clampArrayStrings(item.deliverables, 5),
+  }));
+}
+
+function normalizeExecutionPhases(value) {
+  return clampObjectArray(value, 8).map((item) => ({
+    phase: String(item.phase || "").trim(),
+    objective: String(item.objective || "").trim(),
+    tasks: clampArrayStrings(item.tasks, 8),
+    outputs: clampArrayStrings(item.outputs, 6),
+  }));
+}
+
+function normalizeRiskRegister(value) {
+  return clampObjectArray(value, 10).map((item) => ({
+    risk: String(item.risk || "").trim(),
+    impact: String(item.impact || "").trim(),
+    mitigation: String(item.mitigation || "").trim(),
+    owner: String(item.owner || "").trim(),
+  }));
+}
+
 function normalizeStructuredOutput(rawObject) {
   const object = rawObject && typeof rawObject === "object" ? rawObject : {};
   const technique =
@@ -135,6 +172,7 @@ function normalizeStructuredOutput(rawObject) {
 
   return {
     persona: String(object.persona || "").trim(),
+    teamPersonas: clampArrayStrings(object.teamPersonas, 4),
     mode: String(object.mode || "").trim(),
     domain: String(object.domain || "").trim(),
     strategicObjective: String(object.strategicObjective || "").trim(),
@@ -156,6 +194,11 @@ function normalizeStructuredOutput(rawObject) {
       successCriteria: String(validation.successCriteria || "").trim(),
       failureSignal: String(validation.failureSignal || "").trim(),
     },
+    roleCoverage: normalizeRoleCoverage(object.roleCoverage),
+    executionPhases: normalizeExecutionPhases(object.executionPhases),
+    priorityBacklog: clampArrayStrings(object.priorityBacklog, 12),
+    kpis: clampArrayStrings(object.kpis, 10),
+    riskRegister: normalizeRiskRegister(object.riskRegister),
     assumptions: clampArrayStrings(object.assumptions, 8),
     responseText: String(object.responseText || "").trim(),
   };
